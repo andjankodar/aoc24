@@ -2,23 +2,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-var testInput = """
-    029A
-    980A
-    179A
-    456A
-    379A
-    """;
-
-var input = """
-    935A
-    319A
-    480A
-    789A
-    176A
-    """;
-
-var codes = input.Split("\r\n").ToArray();
+var codes = File.ReadAllLines("input.txt");
 
 var doorpad = new char[][]
 {
@@ -53,9 +37,6 @@ foreach (var code in codes)
 
     var num = int.Parse(code.Substring(0, 3));
     var score = presses * num;
-    Console.WriteLine();
-    Console.WriteLine($"Code {code}: {presses} * {num} = {score}");
-    Console.WriteLine();
     total += score;
 }
 

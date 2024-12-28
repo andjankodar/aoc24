@@ -1,18 +1,18 @@
-﻿// See https://aka.ms/new-console-template for more information
-var testInput = """
-    125 17
-    """;
+﻿
+var stones = File.ReadAllText("input.txt").Split(' ').Select(x => long.Parse(x)).ToArray();
+var input = stones;
+var result = 0;
 
-var myInput = "112 1110 163902 0 7656027 83039 9 74";
+for (int i = 0; i < 25; i++) 
+{
+    input = Blink(input);
+}
 
-var stones = myInput.Split(' ').Select(x => long.Parse(x)).ToArray();
-var input = new List<long>();
-input.AddRange(stones);
-
-for (int i = 0; i < 25; i++)   //Blinks
+long[] Blink(long[] input)
 {
     var output = new List<long>();
-    for (int j = 0; j < input.Count; j++)
+
+    for (int j = 0; j < input.Length; j++)
     {
         if (input[j] == 0)
         {
@@ -33,8 +33,8 @@ for (int i = 0; i < 25; i++)   //Blinks
         output.Add(input[j] * 2024);
     }
 
-    input = new List<long>();
-    input.AddRange(output);
+    return output.ToArray();
 }
 
-Console.WriteLine($"Stones: {input.Count}");
+
+Console.WriteLine($"Stones: {input.Length}");

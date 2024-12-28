@@ -1,46 +1,71 @@
-﻿// See https://aka.ms/new-console-template for more information
-var testInput = """
-    125 17
-    """;
+﻿var stones = File.ReadAllText("input.txt").Split(' ').Select(x => long.Parse(x)).ToArray();
+long stoneCount = 0;
+var cache = new Dictionary<(long, int), long>();
 
-var myInput = "112 1110 163902 0 7656027 83039 9 74";
-
-var stones = myInput.Split(' ').Select(x => long.Parse(x)).ToArray();
-var input = stones;
-var result = 0;
-
-for (int i = 0; i < 25; i++) 
+for (int i = 0; i < stones.Length; i++)
 {
-    input = Blink(input);
+    stoneCount += Count(stones[i], 75);
 }
 
-long[] Blink(long[] input)
-{
-    var output = new List<long>();
-
-    for (int j = 0; j < input.Length; j++)
+long Count(long stone, int steps)
+{    
+    if(steps == 0)
     {
-        if (input[j] == 0)
-        {
-            output.Add(1);
-            continue;
-        }
-        var inputAsString = input[j].ToString();
-
-        if (inputAsString.Length % 2 == 0)
-        {
-            var first = int.Parse(inputAsString.Substring(0, inputAsString.Length / 2));
-            var second = int.Parse(inputAsString.Substring(inputAsString.Length / 2));
-            output.Add(first);
-            output.Add(second);
-            continue;
-        }
-
-        output.Add(input[j] * 2024);
+        return 1;
     }
 
-    return output.ToArray();
+    if (stone == 0)
+    {
+        if(cache.ContainsKey((1, steps -1)))
+        {
+            return cache[(1, steps - 1)];
+        }
+        var result = Count(1, steps - 1);
+        cache.Add((1, steps - 1), result);
+
+        return result;
+    }
+
+    var inputAsString = stone.ToString();
+    if (inputAsString.Length % 2 == 0)
+    {
+        var first = int.Parse(inputAsString.Substring(0, inputAsString.Length / 2));
+        var second = int.Parse(inputAsString.Substring(inputAsString.Length / 2));
+
+        long result1 = 0;
+        long result2 = 0;
+
+        if (cache.ContainsKey((first, steps - 1)))
+        {
+            result1 = cache[(first, steps - 1)];
+        }
+        else
+        {
+            result1 = Count(first, steps - 1);
+            cache.Add((first, steps - 1), result1);
+        }
+
+        if (cache.ContainsKey((second, steps - 1)))
+        {
+            result2 = cache[(second, steps - 1)];
+        }
+        else
+        {
+            result2 = Count(second, steps - 1);
+            cache.Add((second, steps - 1), result2);
+        }
+
+        return result1 + result2;
+    }
+    
+    if(cache.ContainsKey((stone * 2024, steps - 1)))
+    {
+        return cache[(stone * 2024, steps - 1)];
+    }
+
+    var result3 = Count(stone * 2024, steps - 1);
+    cache.Add((stone * 2024, steps - 1), result3);
+    return result3;
 }
 
-
-Console.WriteLine($"Stones: {input.Length}");
+Console.WriteLine($"Stones: {stoneCount}");

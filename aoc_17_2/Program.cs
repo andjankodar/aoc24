@@ -1,31 +1,16 @@
-﻿// See https://aka.ms/new-console-template for more information
+﻿
 using System.Text;
 using System.Text.RegularExpressions;
 
-var testInput = """
-Register A: 117440
-Register B: 0
-Register C: 0
-
-Program: 0,3,5,4,3,0
-""";
-
-var input = """
-Register A: 40210710958656
-Register B: 0
-Register C: 0
-
-Program: 2,4,1,5,7,5,1,6,4,3,5,5,0,3,3,0
-""";
+var input = File.ReadAllLines("input.txt");
 
 long regA = 0;
 long regB = 0;
 long regC = 0;
 var program = new List<int>();
 
-var lines = input.Split("\r\n");
 
-foreach (var line in lines)
+foreach (var line in input)
 {
     if (line.StartsWith("Register A"))
     {
@@ -54,7 +39,7 @@ foreach (var line in lines)
 }
 
 var progString = string.Join(",", program);
-
+var done = false;
 CalcRegisterA(0);
 
 void CalcRegisterA(long seed)
@@ -62,17 +47,22 @@ void CalcRegisterA(long seed)
     // 8 is my denominator in the regA calculation in my program since my combo operand is 3
     for (long i = seed * 8; i < (seed + 1) * 8; i++)
     {
+        if(done)
+        {
+            break;
+        }
+
         var output = RunProgram((long)i);
         var outputString = string.Join(",", output);
 
         if(outputString.Equals(progString, StringComparison.OrdinalIgnoreCase))
         {
             Console.WriteLine($"RegA: {i}. Output: {outputString}");
-            return;
+            done = true;
         }
 
-        if (Compare(output.ToArray()))
-        {            
+        if (!done && Compare(output.ToArray()))
+        {
             CalcRegisterA(i);
         }
     }
@@ -96,10 +86,6 @@ List<long> RunProgram(long A)
     var output = new List<long>();
     ResetBc();
     regA = A;
-    //Console.WriteLine($"Register A: {regA}");
-    //Console.WriteLine($"Register B: {regB}");
-    //Console.WriteLine($"Register C: {regC}");
-    //Console.WriteLine($"Program: {string.Join(",", program)}");
 
     for (int i = 0; i < program.Count - 1;)
     {
@@ -177,7 +163,7 @@ long GetComboOperand(int input)
 
 void ResetBc()
 {
-    foreach (var line in lines)
+    foreach (var line in input)
     {
         if (line.StartsWith("Register B"))
         {

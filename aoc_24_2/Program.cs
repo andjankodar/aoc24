@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 var testInput = File.ReadAllText("testinput.txt");
 var input = File.ReadAllText("input.txt");
@@ -7,13 +6,10 @@ var input = File.ReadAllText("input.txt");
 var inputWires = input.Split("\r\n\r\n")[0].Split("\r\n");
 var gates = input.Split("\r\n\r\n")[1].Split("\r\n");
 
-var wireStatus = new Dictionary<string, bool>();
-var outputDictionary = new SortedDictionary<string, (string w1, string gate, string w2)>();
 var gateDictionary = new Dictionary<(string w1, string op, string w2), string>();
 var swappedWires = new List<string>();
 
 BuildGatesDictionary();
-BuildOutputDictionary();
 
 while (!EvaluateFullAdder())
 {
@@ -34,97 +30,95 @@ bool EvaluateFullAdder()
         var z = GetWireName('z', i);
         var previousZ = GetWireName('z', i - 1);
 
-        var x_xor_y = string.Empty;
-        var carryInWire = string.Empty;
-        var zOut = string.Empty;
-
-
         //Z = (X XOR Y) XOR CARRY
-        x_xor_y = GetOutWireFromGate(x, "XOR", y);
-
-        if (carryBit.ContainsKey(previousZ))
-        {
-            carryInWire = carryBit[previousZ];
-        }
-
-        zOut = GetOutWireFromGate(x_xor_y, "XOR", carryInWire);
+        var x_xor_y = GetOutWireFromGate(x, "XOR", y);
+        var carryInWire = carryBit[previousZ];
+        var zOut = GetOutWireFromGate(x_xor_y, "XOR", carryInWire);
 
         if (string.IsNullOrEmpty(zOut))
         {
-            //x_xor_y outputs to the wrong wire        
+            // x_xor_y outputs to the wrong wire        
             
-            var replaceWithOutput = GetCorrectWire(carryInWire, "XOR");
+            zOut = GetCorrectWire(carryInWire, "XOR");                                      // Find the other input wire in a gate with carryIn XOR. That is the correct output wire from x XOR y.
+            var swapWithGate = gateDictionary.FirstOrDefault(kvp =>  kvp.Value == zOut);    // Find the gate that currently has zOut to swap with
 
-            if(gateDictionary.ContainsKey((x, "XOR", y)))
-            {
-                gateDictionary[(x, "XOR", y)] = replaceWithOutput;
-            }
-            else
-            {
-                gateDictionary[(y, "XOR", x)] = replaceWithOutput;
-            }
+            // Make the swap
+            SetCorrectWire(x, "XOR", y, zOut);
+            SetCorrectWire(swapWithGate.Key.w1, swapWithGate.Key.op, swapWithGate.Key.w2, x_xor_y);           
             
-            var swapWithGate = outputDictionary[replaceWithOutput];
-            gateDictionary[swapWithGate] = x_xor_y;
+            // Store swapped wires for result
             swappedWires.Add(x_xor_y);
-            swappedWires.Add(replaceWithOutput);
-            Console.WriteLine($"Replaced output {x_xor_y} with {replaceWithOutput}");
-            return false;
-        } else if (!zOut.StartsWith('z'))
-        {
-            // Sumwire needs to be a z-wire
-            var faulty = zOut;
-            var replaceWithOutput = GetWireName('z', i);
-            var swapWithGate = outputDictionary[replaceWithOutput];
-            gateDictionary[swapWithGate] = zOut;
-            
-            zOut = replaceWithOutput;           
-         
-            if (gateDictionary.ContainsKey((x_xor_y, "XOR", carryInWire)))
-            {
-                gateDictionary[(x_xor_y, "XOR", carryInWire)] = replaceWithOutput;
-            }
-            else
-            {
-                gateDictionary[(carryInWire, "XOR", x_xor_y)] = replaceWithOutput;
-            }
+            swappedWires.Add(zOut);
 
-            swappedWires.Add(faulty);
-            swappedWires.Add(replaceWithOutput);
-            Console.WriteLine($"Replaced output {faulty} with {replaceWithOutput}");
+            Console.WriteLine($"Replaced output {x_xor_y} with {zOut}");
+        } 
+        else if (!zOut.StartsWith('z'))
+        {
+            // x_xor_y XOR carryIn needs to be a z-wire
+            var faultyZ = zOut;
+            zOut = GetWireName('z', i); //Expected to output to this Z-wire
+            var swapWithGate = gateDictionary.FirstOrDefault(kvp => kvp.Value == zOut);    // Find the gate that currently has zOut to swap with
+
+            //Make the swap
+            SetCorrectWire(x_xor_y, "XOR", carryInWire, zOut);
+            SetCorrectWire(swapWithGate.Key.w1,swapWithGate.Key.op, swapWithGate.Key.w2, faultyZ);
+
+            // Store swapped wires for result
+            swappedWires.Add(faultyZ);
+            swappedWires.Add(zOut);
+            Console.WriteLine($"Replaced output {faultyZ} with {zOut}");
             return false;
         }
 
-        var X_AND_Y = GetOutWireFromGate(x, "AND", y);
-
-        if (string.IsNullOrEmpty(X_AND_Y))
+        // Carry out bit = x_an_y OR (cin XOR (x_and_y)) 
+        var x_and_y = GetOutWireFromGate(x, "AND", y);
+        x_xor_y = GetOutWireFromGate(x, "XOR", y);
+        
+        if (string.IsNullOrEmpty(x_and_y))
         {
             Console.WriteLine($"No gate found for {x} AND {y}");
             throw new InvalidDataException();
         }
 
-        var xor_AND_cin = GetOutWireFromGate(x_xor_y, "AND", carryInWire);
+        var xor_and_cin = GetOutWireFromGate(x_xor_y, "AND", carryInWire);
 
-        var coutWire = string.Empty;
+        var carryOutWire = string.Empty;
         
-        if (string.IsNullOrEmpty(xor_AND_cin) || xor_AND_cin.StartsWith("z"))
+        if (string.IsNullOrEmpty(xor_and_cin) || xor_and_cin.StartsWith("z"))
         {
-            coutWire = X_AND_Y;
+            carryOutWire = x_and_y;
         }
         else
         {
-            coutWire = GetOutWireFromGate(X_AND_Y, "OR", xor_AND_cin);
+            carryOutWire = GetOutWireFromGate(x_and_y, "OR", xor_and_cin);
         }
 
-        if (string.IsNullOrEmpty(coutWire))
+        if (string.IsNullOrEmpty(carryOutWire))
         {
-            Console.WriteLine($"No gate found for {X_AND_Y} OR {xor_AND_cin}");
+            Console.WriteLine($"No gate found for {x_and_y} OR {xor_and_cin}");
+            throw new InvalidDataException();
         }
 
-        carryBit.Add(z, coutWire);
+        carryBit.Add(z, carryOutWire);
     }
 
     return true;
+}
+
+void SetCorrectWire(string w1, string op, string w2, string output)
+{
+    if (gateDictionary.ContainsKey((w1, op, w2)))
+    {
+        gateDictionary[(w1, op, w2)] = output;
+    }
+    else if (gateDictionary.ContainsKey((w2, op, w1)))
+    {
+        gateDictionary[(w2, op, w1)] = output;
+    }
+    else
+    {
+        throw new InvalidDataException();
+    }
 }
 
 string GetCorrectWire(string input1, string op)
@@ -164,15 +158,6 @@ string GetOutWireFromGate(string w1, string operand, string w2)
     return result;
 }
 
-void BuildOutputDictionary()
-{
-    foreach (var key in gateDictionary.Keys)
-    {
-        var output = gateDictionary[key];
-        outputDictionary.Add(output, (key.w1, key.op, key.w2));
-    }
-}
-
 void BuildGatesDictionary()
 {
     foreach (var gate in gates)
@@ -184,41 +169,4 @@ void BuildGatesDictionary()
         var wOut = matches[3].Value;
         gateDictionary.Add((w1, op, w2), wOut);
     }
-}
-
-HashSet<string> MapInputsToOutput(string output, ImmutableHashSet<string> inputs)
-{
-    if(output.StartsWith('x') || output.StartsWith('y'))
-    {
-        return inputs.ToHashSet();
-    }
-
-    foreach (var outWire in outputDictionary.Keys)
-    {
-        if(outWire == output)
-        {
-            var in1 = outputDictionary[outWire].w1;
-            var in2 = outputDictionary[outWire].w2;
-            inputs.Add(in1);
-            inputs.Add(in2);
-
-            var r1 = MapInputsToOutput(in1, inputs.Add(in1));
-            var r2 = MapInputsToOutput(in2, inputs.Add(in2));
-            var result = new HashSet<string>();
-            
-            foreach (var item in r1)
-            {
-                result.Add(item);
-            }
-
-            foreach (var item in r2)
-            {
-                result.Add(item);
-            }
-
-            return result;
-        }
-    }
-
-    return new HashSet<string>();
 }
